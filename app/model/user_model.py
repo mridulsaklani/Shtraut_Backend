@@ -14,7 +14,7 @@ class RoleEnum(str, Enum):
     user = "user"
 
 class User(BaseModel):
-    name: str = Field(..., min_length=6, max_length=32, description="Name")
+    name: str = Field(..., min_length=6, max_length=32, description="Name", )
     username: str = Field(..., min_length=6, max_length=35, description="User name")
     email: EmailStr = Field(..., description="User email ID")
     password: str = Field(..., min_length=8)
@@ -22,6 +22,7 @@ class User(BaseModel):
     status: bool = False
     email_verified: bool = Field(default=False)
     role: RoleEnum = RoleEnum.user
+    otp: int = Field(default=None, min_length=6, max_length=6)
     
 
    
