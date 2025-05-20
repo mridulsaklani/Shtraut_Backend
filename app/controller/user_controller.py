@@ -1,8 +1,9 @@
 from fastapi import HTTPException, Response, status
-from app.model.user_model import User
+from app.model.user_model import User, verifyOPT
 from app.config.database import db
 from app.utils.manage_password import hash_password, verify_password
 from app.utils.verification_otp import send_otp_email
+from app.schemas.user_schema import login_Schema
 from bson import ObjectId
 import random
 import math
@@ -57,6 +58,7 @@ async def user_register(user: User, response: Response):
     return {"message": "User registered successfully"}
 
 async def login(user: User, response: Response):
+    
     user_exist = await user_collection.find_one({"email": user.email})
     if not user_exist:
         raise HTTPException(status_code=400, detail="User does not exist")
@@ -76,3 +78,38 @@ async def login(user: User, response: Response):
 
     response.status_code = status.HTTP_200_OK
     return {"message": "Login successful", "user": user_exist}
+
+
+
+async def verify_OTP(user: verifyOPT, response: Response):
+    new_user = await user_collection.find_one({"email": user.email})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    otp = new_user['otp']
+    
+    if not otp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User OTP not fetched from db")
+    
+    if(int(otp) != int(user.otp)):
+        raise HTTPException(status_code=401, detail="OTP Does not matched")
+    
+    await user_collection.update_one({"email": user.email}, {"$set":{"email_verified": True}, "$unset": {"otp": ""}})
+    
+    response.status_code = status.HTTP_200_OK
+    return {"message": "OTP verified successfully"}
+
+
+async def login_user(user: login_Schema, response: Response):
+    user_exist = await user_collection.find_one({"email": user.email})
+    
+    if not user_exist:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect email Id, please check you mail")
+    
+    check_password = verify_password(user.password, user_exist['password'])
+    
+    if not check_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="password does not match, please try again")
+    
+    
+        

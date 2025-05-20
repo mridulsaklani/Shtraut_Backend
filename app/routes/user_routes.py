@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Response, status
-from app.model.user_model import User
-from app.controller.user_controller import user_register, get_all_users
+from app.model.user_model import User, verifyOPT
+from app.controller.user_controller import user_register, get_all_users, verify_OTP
 
 router = APIRouter()
 
@@ -14,3 +14,6 @@ async def fetch_all_users(response: Response):
 async def handle_user_register(user: User, response: Response):
     return await user_register(user, response)
 
+@router.patch("/verify-otp", status_code=status.HTTP_200_OK)
+async def handle_otp_verification(user: verifyOPT, response: Response):
+    return await verify_OTP(user, response)

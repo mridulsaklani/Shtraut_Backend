@@ -12,9 +12,13 @@ class OccupationEnum(str, Enum):
 class RoleEnum(str, Enum):
     admin = "admin"
     user = "user"
+    
+class verifyOPT(BaseModel):
+    email: EmailStr
+    otp: int 
 
 class User(BaseModel):
-    name: str = Field(..., min_length=6, max_length=32, description="Name", )
+    name: str = Field(..., min_length=6, max_length=32, description="Name" )
     username: str = Field(..., min_length=6, max_length=35, description="User name")
     email: EmailStr = Field(..., description="User email ID")
     password: str = Field(..., min_length=8)
