@@ -27,6 +27,7 @@ class User(BaseModel):
     email_verified: bool = Field(default=False)
     role: RoleEnum = RoleEnum.user
     otp: int = Field(default=None, min_length=6, max_length=6)
+    refresh_token: str = Field(default=None)
     
 
    

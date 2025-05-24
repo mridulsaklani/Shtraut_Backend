@@ -4,6 +4,7 @@ from app.config.database import db
 from app.utils.manage_password import hash_password, verify_password
 from app.utils.verification_otp import send_otp_email
 from app.schemas.user_schema import login_Schema
+from app.utils.generate_token import create_access_token, create_refresh_token
 from bson import ObjectId
 import random
 import math
@@ -57,29 +58,6 @@ async def user_register(user: User, response: Response):
     response.status_code = status.HTTP_201_CREATED
     return {"message": "User registered successfully"}
 
-async def login(user: User, response: Response):
-    
-    user_exist = await user_collection.find_one({"email": user.email})
-    if not user_exist:
-        raise HTTPException(status_code=400, detail="User does not exist")
-    
-    if(user_exist['email_verified'] == False):
-        return HTTPException(status_code=401, detail="OTP is not verified")
-    
-    if not verify_password(user.password, user_exist["password"]):
-        raise HTTPException(status_code=400, detail="Incorrect password")
-
-    user_exist["_id"] = str(user_exist["_id"])
-    
-    await user_collection.update_one(
-        {"email": user.email},
-        {"$set": {"status": "active"}}
-    )
-
-    response.status_code = status.HTTP_200_OK
-    return {"message": "Login successful", "user": user_exist}
-
-
 
 async def verify_OTP(user: verifyOPT, response: Response):
     new_user = await user_collection.find_one({"email": user.email})
@@ -101,15 +79,77 @@ async def verify_OTP(user: verifyOPT, response: Response):
 
 
 async def login_user(user: login_Schema, response: Response):
+    
+    missing_field = []
+    if not user.email:
+        missing_field.append("email")
+    if not user.password:
+        missing_field.append("password")
+        
+    if missing_field:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Missing fields: {", ".join(missing_field)}")
+        
+        
     user_exist = await user_collection.find_one({"email": user.email})
     
     if not user_exist:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect email Id, please check you mail")
     
-    check_password = verify_password(user.password, user_exist['password'])
+    password = user_exist.get("password")
+    
+    check_password = verify_password(user.password, password)
     
     if not check_password:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="password does not match, please try again")
     
+    payload = {
+        "_id": str(user_exist.get("_id")),
+        "email": user_exist.get("email")
+    }
     
-        
+    access_token = create_access_token(payload)
+    refresh_token = create_refresh_token(payload)
+    
+    email_verified = user_exist.get("email_verified")
+    
+    if not email_verified:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Your email is not verified")
+    
+    update_user = await user_collection.find_one_and_update(
+        {"email": user.email}, {"$set":{"status": True, "refresh_token": refresh_token}}
+    )
+    
+    if not update_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='User is not logged in')
+    
+    response.status_code = status.HTTP_200_OK
+    response.set_cookie(key="access-token", value=access_token, httponly=True, secure=True, samesite="none")
+    response.set_cookie(key="refresh-token", value=refresh_token, httponly=True, secure=True, samesite='none')
+    
+    return {"message": f"{user.email} User login successfully"}
+    
+    
+async def logout_user(response: Response, user: dict):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User data not found")
+    
+    id = user.get("userid")
+    if not id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User id not found")
+    print("secod: ",id)
+    try:
+        id = ObjectId(id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User id is invalid")
+    print(id)
+    
+    logged_user = await user_collection.find_one_and_update({"_id": id},{"$set":{"status": False, "refresh_token": None}})
+    
+    if not logged_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User not logged out")
+    
+    response.delete_cookie(key="access-token", httponly=True, secure=True, samesite="none")
+    response.delete_cookie(key='refresh-token', httponly=True, secure=True, samesite="none")
+    
+    response.status_code = status.HTTP_200_OK
+    return {"message": "User logged out successfully"}
