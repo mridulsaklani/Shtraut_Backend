@@ -1,9 +1,20 @@
 from fastapi import HTTPException, Response, status
 from app.config.database import db
 from app.model.blog_model import Blog
+from bson import ObjectId
 
 
 blog_collection = db["blogs"]
+
+def convert_objectid(obj):
+    if isinstance(obj, list):
+        return [convert_objectid(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {k: convert_objectid(v) for k, v in obj.items()}
+    elif isinstance(obj, ObjectId):
+        return str(obj)
+    else:
+        return obj
 
 
 
@@ -28,4 +39,55 @@ async def add_blog(blog:Blog, response: Response, user_data: dict):
     response.status_code = status.HTTP_200_OK
     return {"message": "Blog created successfully"}
     
+
+
+
+async def get_all_blogs(response: Response, user_data: dict):
+    if not user_data:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User is not authenticated")
+
+    pipeline = [
+        {
+            "$addFields": {
+                "createdByObjId": {
+                    "$toObjectId": "$createdBy"
+                }
+            }
+        },
+        {
+            "$lookup": {
+                "from": "users",
+                "localField": "createdByObjId",
+                "foreignField": "_id",
+                "as": "creator"
+            }
+        },
+        {
+            "$unwind": {
+                "path": "$creator",
+                "preserveNullAndEmptyArrays": True
+            }
+        },
+        {
+        "$sort": {
+            "created_at": -1  
+        }
+        }
+    ]
+
+    blog_data = await blog_collection.aggregate(pipeline).to_list(length=None)
+   
+
+   
+    blog_data = [convert_objectid(blog) for blog in blog_data]
     
+    for blog in blog_data:
+        if "creator" in blog:
+            blog["creator"].pop("password", None)
+            blog["creator"].pop("refresh_token", None)
+
+    response.status_code = status.HTTP_200_OK
+    return {
+        "message": "Blogs with user data fetched successfully",
+        "blogdata": blog_data
+    }
