@@ -7,6 +7,7 @@ from app.config.database import connect_to_mongo
 # ROUTES
 from app.routes.user_routes import router as user_router
 from app.routes.verify_auth_routes import router as auth_router
+from app.routes.blog_routes import router as blog_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,6 +32,7 @@ app.add_middleware(
 
 app.include_router(user_router, prefix='/api/user')
 app.include_router(auth_router, prefix='/api/auth')
+app.include_router(blog_router, prefix="/api/blog")
 
 @app.get("/")
 def welcome():

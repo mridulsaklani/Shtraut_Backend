@@ -11,6 +11,9 @@ def verify_jwt(request: Request):
     try:
         payload = verify_access_token(token)
         id = payload.get("_id")
+        
+        if not id:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
        
         return {"payload": payload, "userid" : id }
     except Exception:
