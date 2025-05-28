@@ -26,6 +26,35 @@ async def get_all_users(response: Response):
     response.status_code = status.HTTP_200_OK
     return {"message": "All users get successfully", "users": users}
 
+
+async def get_single_user(response: Response, user_data : dict):
+    
+   if not user_data:
+       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid User") 
+   
+   id = user_data.get('userid')
+   print(id)
+   
+   if not id:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid User id") 
+  
+   try:
+       id = ObjectId(id)
+   except Exception:
+       raise HTTPException(status_code=400, detail='User id is not converted into object id')
+
+    
+    
+   user = await user_collection.find_one({"_id": id}, {'password':0, 'refresh_token': 0})
+   
+   user['_id'] = str(user['_id'])
+   if not user:
+       raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User data not found")
+   response.status_code = status.HTTP_200_OK
+   return {'message': 'User data fetched successfully', 'user': user}
+
+
+
 async def user_register(user: User, response: Response):
     user_exist = await user_collection.find_one({"email": user.email})
     

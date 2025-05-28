@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Response, status, Depends
 from app.model.user_model import User, verifyOPT
-from app.controller.user_controller import user_register, get_all_users, verify_OTP, login_user, logout_user
+from app.controller.user_controller import user_register, get_all_users, get_single_user, verify_OTP, login_user, logout_user
 from app.schemas.user_schema import login_Schema
 from app.middleware.verify_jwt import verify_jwt
 
@@ -10,7 +10,11 @@ router = APIRouter()
 @router.get('/all-users', status_code= status.HTTP_200_OK)
 async def fetch_all_users(response: Response):
     return await get_all_users(response)
-        
+
+@router.get('/single-user')
+async def fetch_single_user(response: Response, user_data: dict = Depends(verify_jwt)):
+    return await get_single_user(response, user_data)
+
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def handle_user_register(user: User, response: Response):
