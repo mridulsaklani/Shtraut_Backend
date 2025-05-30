@@ -16,6 +16,21 @@ class RoleEnum(str, Enum):
 class verifyOPT(BaseModel):
     email: EmailStr
     otp: int 
+    
+    
+    
+class UpdateUser(BaseModel):
+    name: Optional[str] = Field(None, min_length=6, max_length=32)
+    username: Optional[str] = Field(None, min_length=6, max_length=35)
+    email: Optional[EmailStr] = None
+    password: Optional[str] = Field(None, min_length=8)
+    occupation: Optional[OccupationEnum] = None
+    status: Optional[bool] = None
+    email_verified: Optional[bool] = None
+    role: Optional[RoleEnum] = None
+    
+    refresh_token: Optional[str] = None
+
 
 class User(BaseModel):
     name: str = Field(..., min_length=6, max_length=32, description="Name" )
@@ -26,7 +41,8 @@ class User(BaseModel):
     status: bool = False
     email_verified: bool = Field(default=False)
     role: RoleEnum = RoleEnum.user
-    otp: int = Field(default=None, min_length=6, max_length=6)
+    otp: Optional[int] = Field(default=None)
+
     refresh_token: str = Field(default=None)
     
 

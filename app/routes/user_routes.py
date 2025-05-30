@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Response, status, Depends
-from app.model.user_model import User, verifyOPT
-from app.controller.user_controller import user_register, get_all_users, get_single_user, verify_OTP, login_user, logout_user
+from fastapi import APIRouter, Response, status, Depends, Body
+from app.model.user_model import User, verifyOPT, UpdateUser
+from app.controller.user_controller import user_register, get_all_users, get_single_user, verify_OTP, login_user, logout_user, update_user
 from app.schemas.user_schema import login_Schema
 from app.middleware.verify_jwt import verify_jwt
 
@@ -31,3 +31,10 @@ async def handle_user_login(user:login_Schema, response: Response):
 @router.post('/logout')
 async def handle_user_logout(response: Response, user : dict = Depends(dependency=verify_jwt)):
     return await logout_user(response, user)
+
+@router.patch('/update')
+async def handle_update_user(
+    response: Response,
+    user: UpdateUser = Body(...), 
+    user_Data: dict = Depends(verify_jwt)):
+    return await update_user( response , user, user_Data)

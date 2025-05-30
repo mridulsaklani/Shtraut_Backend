@@ -91,3 +91,36 @@ async def get_all_blogs(response: Response, user_data: dict):
         "message": "Blogs with user data fetched successfully",
         "blogdata": blog_data
     }
+    
+    
+async def user_blog_count(response: Response, user_data: dict):
+    if not user_data:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized User")
+    
+    id = user_data.get('userid')
+    
+    try:
+        id = ObjectId(id)
+        
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='object id issue')
+    
+    data = await blog_collection.aggregate([
+        
+        {
+            "$match":{
+            "_id": id
+        }
+        },
+        {
+            "$count": 'blogCount'
+        }
+    ])
+    
+    count = data[0].blogCount or 0
+    
+    if not count:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Blog count not found')
+        
+    response.status_code = status.HTTP_200_OK
+    return {"message": "Count get successfully", "count": count}

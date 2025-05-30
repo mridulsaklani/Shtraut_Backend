@@ -1,5 +1,5 @@
 from fastapi import HTTPException, Response, status
-from app.model.user_model import User, verifyOPT
+from app.model.user_model import User, verifyOPT, UpdateUser
 from app.config.database import db
 from app.utils.manage_password import hash_password, verify_password
 from app.utils.verification_otp import send_otp_email
@@ -33,7 +33,7 @@ async def get_single_user(response: Response, user_data : dict):
        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid User") 
    
    id = user_data.get('userid')
-   print(id)
+  
    
    if not id:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid User id") 
@@ -157,6 +157,54 @@ async def login_user(user: login_Schema, response: Response):
     
     return {"message": f"{user.email} User login successfully"}
     
+
+async def update_user(response: Response,user: UpdateUser,  user_data: dict):
+    if not user_data and not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user data and User"
+        )
+    print(user)
+    id = user_data.get('userid')
+    if not id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User ID not provided"
+        )
+
+    try:
+        id = ObjectId(id)
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail='User ID is not a valid ObjectId'
+        )
+        
+    user = user.model_dump(exclude_none=True)
+
+    updated_user = await user_collection.find_one_and_update(
+        {"_id": id},
+        {"$set": user},
+        return_document=True
+    )
+
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User not updated"
+        )
+
+    updated_user["_id"] = str(updated_user["_id"])  
+
+    response.status_code = status.HTTP_200_OK
+    return {
+        "message": "User updated successfully",
+        "user": updated_user
+    }
+
+    
+
+        
     
 async def logout_user(response: Response, user: dict):
     if not user:
