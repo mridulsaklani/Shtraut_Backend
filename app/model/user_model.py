@@ -30,6 +30,7 @@ class UpdateUser(BaseModel):
     role: Optional[RoleEnum] = None
     
     refresh_token: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class User(BaseModel):

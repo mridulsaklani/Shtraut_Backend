@@ -49,11 +49,35 @@ async def get_single_user(response: Response, user_data : dict):
    
    user['_id'] = str(user['_id'])
    if not user:
-       raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User data not found")
+      raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User data not found")
    response.status_code = status.HTTP_200_OK
    return {'message': 'User data fetched successfully', 'user': user}
 
-
+async def get_user_by_id(response: Response, id: str, user_data: dict):
+    if not user_data:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Unauthorized User')
+    
+    if not id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=' User ID not found')
+    
+    try:
+        id = ObjectId(id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=' User ID not transform')
+    
+    user = await user_collection.find_one({"_id": id}, {'password': 0, 'refresh_token': 0})
+    
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=' User  not found')
+    
+    user["_id"] = str(user["_id"])
+    
+    response.status_code = status.HTTP_200_OK
+    return {'message': 'user fetched sexfully', "user": user}
+    
+    
+    
+    
 
 async def user_register(user: User, response: Response):
     user_exist = await user_collection.find_one({"email": user.email})
@@ -70,7 +94,7 @@ async def user_register(user: User, response: Response):
             detail="username already exist, use different one"
         )
     otp = generate_otp()
-    user_dict = user.model_dump()
+    user_dict = user.model_dump(exclude_none=True)
     user_dict['password'] = hash_password(user_dict['password']) 
     user_dict['otp'] = otp
     user_dict["status"] = False
@@ -133,7 +157,8 @@ async def login_user(user: login_Schema, response: Response):
     
     payload = {
         "_id": str(user_exist.get("_id")),
-        "email": user_exist.get("email")
+        "email": user_exist.get("email"),
+        'role':user_exist.get('role')
     }
     
     access_token = create_access_token(payload)
