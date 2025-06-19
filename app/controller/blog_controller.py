@@ -51,6 +51,13 @@ async def add_blog(blog:Blog, response: Response, user_data: dict):
 async def get_all_blogs(response: Response, user_data: dict):
     if not user_data:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User is not authenticated")
+    
+    user_id = user_data.get('userid')
+    
+    # try:
+    #     user_id =  ObjectId(user_id)
+    # except Exception:
+    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid ID')
 
     pipeline = [
         {
@@ -91,6 +98,11 @@ async def get_all_blogs(response: Response, user_data: dict):
         if "creator" in blog:
             blog["creator"].pop("password", None)
             blog["creator"].pop("refresh_token", None)
+        
+        blog['isLiked'] = False
+        if user_id in blog.get('likedBy'):
+           blog['isLiked'] = True
+        
             
             
 
