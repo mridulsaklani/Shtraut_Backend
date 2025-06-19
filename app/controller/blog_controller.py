@@ -1,6 +1,8 @@
 from fastapi import HTTPException, Response, status
+from pymongo import ReplaceOne
 from app.config.database import db
 from app.model.blog_model import Blog
+from app.model.blog_model import Like_Request
 from bson import ObjectId
 
 
@@ -89,6 +91,8 @@ async def get_all_blogs(response: Response, user_data: dict):
         if "creator" in blog:
             blog["creator"].pop("password", None)
             blog["creator"].pop("refresh_token", None)
+            
+            
 
     response.status_code = status.HTTP_200_OK
     return {
@@ -134,3 +138,39 @@ async def user_blog_count(response: Response, user_data: dict):
         
     response.status_code = status.HTTP_200_OK
     return {"message": "Count get successfully", "count": count}
+
+
+async def like(data: Like_Request, response: Response, user_data:dict):
+    if not user_data:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user")
+    data = data.model_dump()
+    
+    blog_id = data.get('blog_id')
+    
+    if not blog_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blog ID not found")
+    
+    user_id = user_data.get('userid')
+    
+    try:
+        user_id = ObjectId(user_id)
+        blog_id = ObjectId(blog_id)
+    except Exception:
+         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid IDs')
+     
+    blog = await blog_collection.find_one({"_id": blog_id})
+    
+    if not blog:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blog data not found")
+    
+    if user_id in blog.get('likedBy'):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You already like it")
+    
+    update = await blog_collection.update_one({"_id": blog_id}, {"$addToSet":{"likedBy":user_id}, "$inc": {'likes':1}})
+    
+    if not update:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Failed to like')
+    
+    response.status_code = status.HTTP_200_OK
+    return {"message": "Blog liked successfully"}
+    
