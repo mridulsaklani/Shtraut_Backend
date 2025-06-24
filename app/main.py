@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-
+import os
 from app.config.database import connect_to_mongo
 
 # ROUTES
@@ -16,10 +16,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+Client = os.getenv('CLIENT_URL')
+
 origins = [
-    "http://localhost:5173",  
-    "http://127.0.0.1:5173",  
-    
+    Client
 ]
 
 app.add_middleware(
