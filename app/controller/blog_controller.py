@@ -1,3 +1,4 @@
+from turtle import update
 from fastapi import HTTPException, Response, status
 from pymongo import ReplaceOne
 from app.config.database import db
@@ -185,4 +186,40 @@ async def like(data: Like_Request, response: Response, user_data:dict):
     
     response.status_code = status.HTTP_200_OK
     return {"message": "Blog liked successfully"}
+
+async def handle_unlike(data: Like_Request, response: Response, user_data:dict):
+    if not user_data:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized user")
+    data = data.model_dump()
+    
+    blog_id = data.get('blog_id')
+    
+    if not blog_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blog ID not found")
+    
+    user_id = user_data.get('userid')
+    
+    try:
+        user_id = ObjectId(user_id)
+        blog_id = ObjectId(blog_id)
+    except Exception:
+         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid IDs')
+     
+    blog = await blog_collection.find_one({"_id": blog_id})
+    
+    if not blog:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blog data not found")
+    
+    if user_id not in blog.get('likedBy'):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='You have not liked that blog')
+    
+    update = await blog_collection.update_one({"_id": blog_id}, {"$pull":{"likedBy":user_id}, "$inc": {'likes':-1}})
+    
+    if not update:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Failed to unlike')
+    
+    response.status_code = status.HTTP_200_OK
+    return {"message": "Blog unlike successfully" }
+     
+     
     
