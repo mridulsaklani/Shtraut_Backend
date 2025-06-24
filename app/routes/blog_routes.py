@@ -1,6 +1,6 @@
 from fastapi import Response, HTTPException, APIRouter, Depends
 from app.model.blog_model import Blog
-from app.controller.blog_controller import add_blog, get_all_blogs, user_blog_count, like
+from app.controller.blog_controller import add_blog, get_all_blogs, user_blog_count, like, handle_unlike
 from app.middleware.verify_jwt import verify_jwt
 from app.model.blog_model import Like_Request
 
@@ -23,3 +23,7 @@ async def handle_blog_count(response: Response, user_data: dict = Depends(verify
 @router.patch('/like')
 async def handle_like(data: Like_Request, response: Response, user_data: dict = Depends(verify_jwt)):
     return await like(data, response, user_data)
+
+@router.patch('/unlike')
+async def handle_unliked(data: Like_Request, response:Response, user_data: dict = Depends(verify_jwt)):
+    return await handle_unlike(data, response, user_data)
