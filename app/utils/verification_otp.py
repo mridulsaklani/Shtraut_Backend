@@ -3,7 +3,7 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 import os
 
-# Load environment variables from .env
+
 load_dotenv()
 
 EMAIL_HOST = os.getenv("EMAIL_HOST")
@@ -12,6 +12,7 @@ EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
 def send_otp_email(to_email: str, otp: str):
+    print("to email: ", to_email, "otp: ", otp)
     msg = EmailMessage()
     msg["Subject"] = "Your OTP Verification Code"
     msg["From"] = EMAIL_USER
@@ -25,5 +26,6 @@ def send_otp_email(to_email: str, otp: str):
             smtp.send_message(msg)
         return {"message": "OTP email sent successfully"}
     except Exception as e:
+        print(f"error {e} ")
         return {"error": str(e)}
 
