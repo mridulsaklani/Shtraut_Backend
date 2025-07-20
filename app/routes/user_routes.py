@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Response, status, Depends, Body
+from app.schemas.user_schema import update_email_schema
 from app.model.user_model import User, verifyOPT, UpdateUser
-from app.controller.user_controller import user_register, get_all_users, get_single_user, verify_OTP, login_user, logout_user, update_user, get_user_by_id
+from app.controller.user_controller import change_email_id, user_register, get_all_users, get_single_user, verify_OTP, login_user, logout_user, update_user, get_user_by_id
 from app.schemas.user_schema import login_Schema
 from app.middleware.verify_jwt import verify_jwt
 
@@ -42,5 +43,9 @@ async def handle_update_user(
     user: UpdateUser = Body(...), 
     user_Data: dict = Depends(verify_jwt)):
     return await update_user( response , user, user_Data)
+
+@router.patch('/update-email')
+async def update_email(data:update_email_schema, response: Response, user_data: dict = Depends(verify_jwt)):
+    return await change_email_id(data, response, user_data )
 
 

@@ -1,9 +1,11 @@
+import email
 from fastapi import HTTPException, Response, status
+from sympy import det
 from app.model.user_model import User, verifyOPT, UpdateUser
 from app.config.database import db
 from app.utils.manage_password import hash_password, verify_password
 from app.utils.verification_otp import send_otp_email
-from app.schemas.user_schema import login_Schema
+from app.schemas.user_schema import login_Schema, update_email_schema
 from app.utils.generate_token import create_access_token, create_refresh_token
 from bson import ObjectId
 import random
@@ -183,13 +185,15 @@ async def login_user(user: login_Schema, response: Response):
     return {"message": f"{user.email} User login successfully"}
     
 
+
+
 async def update_user(response: Response,user: UpdateUser,  user_data: dict):
     if not user_data and not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid user data and User"
         )
-    print(user)
+    
     id = user_data.get('userid')
     if not id:
         raise HTTPException(
@@ -228,7 +232,29 @@ async def update_user(response: Response,user: UpdateUser,  user_data: dict):
     }
 
     
-
+async def change_email_id(data: dict, response: Response, user_data: dict):
+    if not user_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user")
+    
+    
+    
+    change_email = data.get("email")
+    
+    if not change_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email id not found")
+    
+    isMailExist = await user_collection.find_one({"email": change_email})
+    
+    if not isMailExist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Email id not exist in database")
+    
+    otp = generate_otp()
+    
+    
+    
+    send_otp_email(email, otp)
+    
+    
         
     
 async def logout_user(response: Response, user: dict):
@@ -238,12 +264,12 @@ async def logout_user(response: Response, user: dict):
     id = user.get("userid")
     if not id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User id not found")
-    print("secod: ",id)
+    
     try:
         id = ObjectId(id)
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User id is invalid")
-    print(id)
+    
     
     logged_user = await user_collection.find_one_and_update({"_id": id},{"$set":{"status": False, "refresh_token": None}})
     
