@@ -1,6 +1,6 @@
-import email
+
 from fastapi import HTTPException, Response, status
-from sympy import det
+from app.utils.encryption_utils import incrept_email, decrept_email
 from app.model.user_model import User, verifyOPT, UpdateUser
 from app.config.database import db
 from app.utils.manage_password import hash_password, verify_password
@@ -77,9 +77,7 @@ async def get_user_by_id(response: Response, id: str, user_data: dict):
     response.status_code = status.HTTP_200_OK
     return {'message': 'user fetched sexfully', "user": user}
     
-    
-    
-    
+
 
 async def user_register(user: User, response: Response):
     user_exist = await user_collection.find_one({"email": user.email})
@@ -97,6 +95,8 @@ async def user_register(user: User, response: Response):
         )
     otp = generate_otp()
     user_dict = user.model_dump(exclude_none=True)
+    user_dict["email"] = incrept_email(user_dict.get("email"))
+    
     user_dict['password'] = hash_password(user_dict['password']) 
     user_dict['otp'] = otp
     user_dict["status"] = False
@@ -233,26 +233,39 @@ async def update_user(response: Response,user: UpdateUser,  user_data: dict):
 
     
 async def change_email_id(data: dict, response: Response, user_data: dict):
+   
+    
+    
     if not user_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user")
     
+    userId = user_data.get("userid")
     
+    try:
+        userId: ObjectId(userId)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid object id")
+    
+    if not userId:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user")
     
     change_email = data.get("email")
     
     if not change_email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email id not found")
     
-    isMailExist = await user_collection.find_one({"email": change_email})
-    
-    if not isMailExist:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Email id not exist in database")
     
     otp = generate_otp()
     
     
+    sending_email = send_otp_email(change_email, otp)
     
-    send_otp_email(email, otp)
+    # if()
+    
+    update_user = await user_collection.update_one({"email", change_email, {"$set":{"otp": otp}}})
+    
+    
+    
     
     
         
