@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
 from typing import Optional
 from enum import Enum
 from datetime import datetime
-import re
+
 
 class OccupationEnum(str, Enum):
     student = "student"
