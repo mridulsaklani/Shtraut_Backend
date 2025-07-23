@@ -3,20 +3,21 @@ from fastapi import HTTPException, Response, status
 from app.utils.encryption_utils import incrept_email, decrept_email
 from app.model.user_model import User, verifyOPT, UpdateUser
 from app.config.database import db
-from app.utils.manage_password import hash_password, verify_password
-from app.utils.verification_otp import send_otp_email
+from app.utils.password_utils import hash_password, verify_password
+from app.utils.email_utils import send_otp_email
 from app.schemas.user_schema import login_Schema, update_email_schema
-from app.utils.generate_token import create_access_token, create_refresh_token
+from app.utils.token_utils import create_access_token, create_refresh_token
+from app.utils.otp_utils import generate_otp
+from app.services.verify_email_service import verify_email
+from app.config.database import client
 from bson import ObjectId
-import random
-import math
+
+
 
 
 user_collection = db["users"]
 
-def generate_otp():
-    otp = math.floor(100000 + random.random() * 900000)
-    return otp
+
 
 
 async def get_all_users(response: Response):
@@ -80,38 +81,45 @@ async def get_user_by_id(response: Response, id: str, user_data: dict):
 
 
 async def user_register(user: User, response: Response):
-    user_exist = await user_collection.find_one({"email": user.email})
+    session = await client.start_session()
+    try:
+        await session.start_transaction()
+        
+        user_exist = await user_collection.find_one({"email": user.email})
+        
+        if user_exist:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User already exist, use different email" 
+            )
     
-    if user_exist:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already exist, use different email" 
-        )
-    user_name_exist = await user_collection.find_one({"username": user.username})  
-    if user_name_exist:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="username already exist, use different one"
-        )
-    otp = generate_otp()
-    user_dict = user.model_dump(exclude_none=True)
-    user_dict["email"] = incrept_email(user_dict.get("email"))
+        user_name_exist = await user_collection.find_one({"username": user.username})  
     
-    user_dict['password'] = hash_password(user_dict['password']) 
-    user_dict['otp'] = otp
-    user_dict["status"] = False
-    sending_email = send_otp_email(user.email, otp)
+        if user_name_exist:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="username already exist, use different one"
+            )
     
-    if "error" in sending_email:
+        
+        user_dict = user.model_dump(exclude_none=True)
+        user_dict["email"] = incrept_email(user_dict.get("email"))
+        user_dict['password'] = hash_password(user_dict['password']) 
+        
+        await verify_email(user.email, session)
+            
+        await user_collection.insert_one(user_dict, session=session)
+        await session.commit_transaction()
+        response.status_code = status.HTTP_201_CREATED
+        return {"message": "User registered successfully"}
+    except Exception as e:
+        await session.abort_transaction()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Email is not send and account is not created"
+            detail=f"Registration failed: {str(e)}"
         )
-        
-    
-    await user_collection.insert_one(user_dict)
-    response.status_code = status.HTTP_201_CREATED
-    return {"message": "User registered successfully"}
+    finally:
+        await session.end_session()
 
 
 async def verify_OTP(user: verifyOPT, response: Response):

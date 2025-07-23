@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException, status
-from app.utils.generate_token import verify_access_token, verify_refresh_token
+from Backend.app.utils.token_utils import verify_access_token, verify_refresh_token
 
 
 def verify_jwt(request: Request):

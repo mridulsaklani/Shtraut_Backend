@@ -11,5 +11,7 @@ class otp_type_enum(str, Enum):
 
 class Verify_otp_model(BaseModel):
     email: EmailStr
-    otp: str
+    otp: int
     type: otp_type_enum
+    expiration: datetime
+    created_at: datetime

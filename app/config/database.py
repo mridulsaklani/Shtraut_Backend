@@ -9,9 +9,10 @@ MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
 client = AsyncIOMotorClient(MONGO_URI)
 db = client[MONGO_DB_NAME]
 
+otp_collection = db['otps']
+
 async def connect_to_mongo():
     try:
-        # Attempt to fetch server information to check connection
         await client.server_info()
         print("Connected to MongoDB")
     except Exception as e:

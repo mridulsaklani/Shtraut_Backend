@@ -24,7 +24,7 @@ def send_otp_email(to_email: str, otp: str):
             smtp.starttls()
             smtp.login(EMAIL_USER, EMAIL_PASSWORD)
             smtp.send_message(msg)
-        return {"message": "OTP email sent successfully"}
+        return {"message": "OTP email sent successfully", "status": True }
     except Exception as e:
         print(f"error {e} ")
         return {"error": str(e)}
