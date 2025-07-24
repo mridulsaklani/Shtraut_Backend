@@ -1,5 +1,6 @@
 
 from fastapi import HTTPException, Response, status
+
 from app.utils.encryption_utils import incrept_email, decrept_email
 from app.model.user_model import User, verifyOPT, UpdateUser
 from app.config.database import db
@@ -8,9 +9,10 @@ from app.utils.email_utils import send_otp_email
 from app.schemas.user_schema import login_Schema, update_email_schema
 from app.utils.token_utils import create_access_token, create_refresh_token
 from app.utils.otp_utils import generate_otp
-from app.services.verify_email_service import verify_email
+from app.services.send_verify_email_service import verify_email
 from app.config.database import client
 from bson import ObjectId
+from app.exceptions.custom_exceptions import UserAlreadyExistsException
 
 
 
@@ -83,19 +85,18 @@ async def get_user_by_id(response: Response, id: str, user_data: dict):
 async def user_register(user: User, response: Response):
     session = await client.start_session()
     try:
-        await session.start_transaction()
+        session.start_transaction()
         
         user_exist = await user_collection.find_one({"email": user.email})
         
         if user_exist:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="User already exist, use different email" 
-            )
+            
+            raise UserAlreadyExistsException()
     
         user_name_exist = await user_collection.find_one({"username": user.username})  
     
         if user_name_exist:
+            
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="username already exist, use different one"
@@ -106,9 +107,16 @@ async def user_register(user: User, response: Response):
         user_dict["email"] = incrept_email(user_dict.get("email"))
         user_dict['password'] = hash_password(user_dict['password']) 
         
-        await verify_email(user.email, session)
+        is_verify = await verify_email(user.email, session)
+        
+        if not is_verify:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User email is not verified ")
             
-        await user_collection.insert_one(user_dict, session=session)
+        create = await user_collection.insert_one(user_dict, session=session)
+        
+        if not create:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User account not created ")
+        
         await session.commit_transaction()
         response.status_code = status.HTTP_201_CREATED
         return {"message": "User registered successfully"}

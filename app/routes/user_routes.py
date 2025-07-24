@@ -2,7 +2,7 @@ from fastapi import APIRouter, Response, status, Depends, Body
 from app.schemas.user_schema import update_email_schema
 from app.model.user_model import User, verifyOPT, UpdateUser
 from app.controller.user_controller import change_email_id, user_register, get_all_users, get_single_user, verify_OTP, login_user, logout_user, update_user, get_user_by_id
-from app.schemas.user_schema import login_Schema
+from app.schemas.user_schema import login_Schema, user_register_schema
 from app.middleware.verify_jwt import verify_jwt
 
 router = APIRouter()
@@ -22,7 +22,7 @@ async def get_user_by_ids(response: Response, id: str,  user_data: dict = Depend
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def handle_user_register(user: User, response: Response):
+async def handle_user_register(user: user_register_schema, response: Response):
     return await user_register(user, response)
 
 @router.patch("/verify-otp", status_code=status.HTTP_200_OK)

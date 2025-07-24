@@ -3,15 +3,10 @@ from typing import Optional
 from enum import Enum
 from datetime import datetime
 
+from app.model.enums import OccupationEnum, RoleEnum
 
-class OccupationEnum(str, Enum):
-    student = "student"
-    employed = "employed"
-    unemployed = "unemployed"
 
-class RoleEnum(str, Enum):
-    admin = "admin"
-    user = "user"
+
     
 class verifyOPT(BaseModel):
     email: EmailStr
@@ -42,7 +37,6 @@ class User(BaseModel):
     status: bool = False
     email_verified: bool = Field(default=False)
     role: RoleEnum = RoleEnum.user
-    otp: Optional[int] = Field(default=None)
 
     refresh_token: str = Field(default=None)
     
