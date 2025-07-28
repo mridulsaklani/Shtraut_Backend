@@ -1,19 +1,24 @@
 
+from tabnanny import check
 from fastapi import HTTPException, Response, status
 
+from app.services.otp_services import find_email_verification_otp
 from app.utils.encryption_utils import incrept_email, decrept_email
 from app.model.user_model import User, verifyOPT, UpdateUser
 from app.config.database import db
 from app.utils.password_utils import hash_password, verify_password
 from app.utils.email_utils import send_otp_email
-from app.schemas.user_schema import login_Schema, update_email_schema
+from app.schemas.user_schema import login_Schema, update_email_schema, user_register_schema
 from app.utils.token_utils import create_access_token, create_refresh_token
-from app.utils.otp_utils import generate_otp
+from app.utils.otp_utils import generate_otp, compare_otp
 from app.services.send_verify_email_service import verify_email
 from app.config.database import client
 from bson import ObjectId
-from app.exceptions.custom_exceptions import UserAlreadyExistsException
-
+from app.exceptions.custom_user_exceptions import UserAlreadyExistsException, UserNameAlreadyExist, EmailVerificationException
+from app.utils.hash_utils import hash_email
+from app.config.database import otp_collection
+from app.responses.custom_response import success_response, error_response
+from app.exceptions.custom_otp_exceptions import invalidOtpException
 
 
 
@@ -82,46 +87,52 @@ async def get_user_by_id(response: Response, id: str, user_data: dict):
     
 
 
-async def user_register(user: User, response: Response):
+async def user_register(user: user_register_schema, response: Response):
     session = await client.start_session()
     try:
         session.start_transaction()
+        email_hash = hash_email(user.email)
         
-        user_exist = await user_collection.find_one({"email": user.email})
+        user_exist = await user_collection.find_one({"email_hash": email_hash})
         
         if user_exist:
             
-            raise UserAlreadyExistsException()
+            raise UserAlreadyExistsException(user.email)
     
         user_name_exist = await user_collection.find_one({"username": user.username})  
     
         if user_name_exist:
             
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="username already exist, use different one"
-            )
+            raise UserNameAlreadyExist(user.username)
     
-        
         user_dict = user.model_dump(exclude_none=True)
+        user_dict['email_hash'] = hash_email(user.email)
         user_dict["email"] = incrept_email(user_dict.get("email"))
         user_dict['password'] = hash_password(user_dict['password']) 
         
         is_verify = await verify_email(user.email, session)
         
         if not is_verify:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User email is not verified ")
-            
-        create = await user_collection.insert_one(user_dict, session=session)
+            raise EmailVerificationException()
         
-        if not create:
+        db_user = User(**user_dict)
+        
+        if not db_user:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST , detail="User data is not valid db user schema data")
+        
+            
+        new_user = await user_collection.insert_one(user_dict, session=session)
+        
+        if not new_user:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User account not created ")
         
         await session.commit_transaction()
-        response.status_code = status.HTTP_201_CREATED
-        return {"message": "User registered successfully"}
+        return success_response(code=status.HTTP_201_CREATED)
+       
+        
     except Exception as e:
         await session.abort_transaction()
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Registration failed: {str(e)}"
@@ -131,19 +142,20 @@ async def user_register(user: User, response: Response):
 
 
 async def verify_OTP(user: verifyOPT, response: Response):
-    new_user = await user_collection.find_one({"email": user.email})
+   
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
-    otp = new_user['otp']
+    otp = await find_email_verification_otp(user.email)
     
-    if not otp:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User OTP not fetched from db")
+    is_otp_valid = compare_otp(otp, user.otp)
     
-    if(int(otp) != int(user.otp)):
-        raise HTTPException(status_code=401, detail="OTP Does not matched")
+    if not is_otp_valid:
+        raise invalidOtpException()
     
-    await user_collection.update_one({"email": user.email}, {"$set":{"email_verified": True}, "$unset": {"otp": ""}})
+    hashed_email = hash_email(user.email)
+    
+    await user_collection.update_one({"email_hash": hashed_email}, {"$set":{"email_verified": True}})
     
     response.status_code = status.HTTP_200_OK
     return {"message": "OTP verified successfully"}

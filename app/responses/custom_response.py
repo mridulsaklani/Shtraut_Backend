@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi import status
 
 
-def success_response(data: dict, message: str = "Success", code: int = status.HTTP_200_OK):
+def success_response(data: dict = None, message: str = "Success", code: int = status.HTTP_200_OK):
     return JSONResponse(
         status_code=code,
         content={

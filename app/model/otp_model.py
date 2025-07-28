@@ -11,6 +11,7 @@ from app.model.enums import otp_type_enum
 
 class Verify_otp_model(BaseModel):
     email: str
+    email_hash: str
     otp: int
     type: otp_type_enum
     expiration: datetime
